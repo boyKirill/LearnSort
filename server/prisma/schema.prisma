@@ -1,0 +1,151 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum VerificationType {
+  EMAIL_CHANGE
+  PASSWORD_CHANGE
+}
+
+enum ModuleProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum KnowledgeQuestionType {
+  SINGLE_CHOICE
+  NEXT_STEP
+  COMPARED_ELEMENTS
+  PROPERTY
+  COMPLEXITY
+  PIVOT
+  SORTED_SEGMENT
+}
+
+model User {
+  id                  String                 @id @default(cuid())
+  email               String                 @unique
+  nickname            String
+  passwordHash        String
+  isEmailVerified     Boolean                @default(true)
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  refreshTokens       RefreshToken[]
+  verificationCodes   EmailVerificationCode[]
+  attempts            KnowledgeAttempt[]
+  moduleProgress      ModuleProgress[]
+}
+
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model EmailVerificationCode {
+  id                  String           @id @default(cuid())
+  userId              String
+  type                VerificationType
+  codeHash            String
+  pendingEmail        String?
+  pendingPasswordHash String?
+  expiresAt           DateTime
+  usedAt              DateTime?
+  createdAt           DateTime         @default(now())
+  user                User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type, expiresAt])
+}
+
+model Module {
+  id             String           @id @default(cuid())
+  slug           String           @unique
+  title          String
+  description    String
+  theory         String           @db.Text
+  pseudocode     String           @db.Text
+  complexity     Json
+  propertiesJson Json
+  advantages     Json
+  disadvantages  Json
+  usageNotes     Json
+  order          Int
+  knowledgeCheck KnowledgeCheck?
+  progress       ModuleProgress[]
+
+  @@index([order])
+}
+
+model KnowledgeCheck {
+  id        String              @id @default(cuid())
+  moduleId  String              @unique
+  module    Module              @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  questions KnowledgeQuestion[]
+  attempts  KnowledgeAttempt[]
+}
+
+model KnowledgeQuestion {
+  id               String                @id @default(cuid())
+  knowledgeCheckId String
+  text             String
+  explanation      String
+  order            Int
+  type             KnowledgeQuestionType
+  knowledgeCheck   KnowledgeCheck        @relation(fields: [knowledgeCheckId], references: [id], onDelete: Cascade)
+  options          KnowledgeOption[]
+
+  @@index([knowledgeCheckId, order])
+}
+
+model KnowledgeOption {
+  id         String            @id @default(cuid())
+  questionId String
+  text       String
+  isCorrect  Boolean
+  question   KnowledgeQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+}
+
+model KnowledgeAttempt {
+  id               String         @id @default(cuid())
+  userId           String
+  knowledgeCheckId String
+  score            Int
+  maxScore         Int
+  percent          Int
+  answersJson      Json?
+  resultsJson      Json?
+  createdAt        DateTime       @default(now())
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  knowledgeCheck   KnowledgeCheck @relation(fields: [knowledgeCheckId], references: [id], onDelete: Cascade)
+
+  @@index([userId, knowledgeCheckId, createdAt])
+}
+
+model ModuleProgress {
+  id                       String               @id @default(cuid())
+  userId                   String
+  moduleId                 String
+  status                   ModuleProgressStatus @default(NOT_STARTED)
+  bestKnowledgeCheckPercent Int                 @default(0)
+  createdAt                DateTime             @default(now())
+  updatedAt                DateTime             @updatedAt
+  user                     User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module                   Module               @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, moduleId])
+  @@index([userId, status])
+}
