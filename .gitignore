@@ -10,3 +10,4 @@ coverage
 client/dist
 server/dist
 *.log
+*.tsbuildinfo
