@@ -3,6 +3,26 @@ import { z } from 'zod';
 
 config();
 
+const booleanFromEnv = z.preprocess((value) => {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+
+    if (normalized === 'true') {
+      return true;
+    }
+
+    if (normalized === 'false') {
+      return false;
+    }
+  }
+
+  return value;
+}, z.boolean());
+
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   PORT: z.coerce.number().int().positive().default(5000),
@@ -15,7 +35,7 @@ const envSchema = z.object({
   COOKIE_NAME: z.string().default('sortlearn_refresh'),
   MAIL_HOST: z.string().min(1),
   MAIL_PORT: z.coerce.number().int().positive(),
-  MAIL_SECURE: z.coerce.boolean().default(false),
+  MAIL_SECURE: booleanFromEnv.default(false),
   MAIL_USER: z.string().optional().default(''),
   MAIL_PASSWORD: z.string().optional().default(''),
   MAIL_FROM: z.string().email(),

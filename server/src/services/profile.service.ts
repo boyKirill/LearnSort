@@ -2,7 +2,7 @@ import { VerificationType } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 import { env } from '../config/env.js';
-import { mailer } from '../lib/mailer.js';
+import { sendMailOrThrow } from '../lib/mailer.js';
 import { prisma } from '../lib/prisma.js';
 import { generateVerificationCode, hashValue } from '../utils/crypto.js';
 import { HttpError } from '../utils/http-error.js';
@@ -103,13 +103,13 @@ export async function requestEmailChange(userId: string, newEmail: string) {
   });
 
   await Promise.all([
-    mailer.sendMail({
+    sendMailOrThrow('email-change', {
       from: env.MAIL_FROM,
       to: normalizedEmail,
       subject: 'Код подтверждения смены email в SortLearn',
       text: `Здравствуйте!\n\nКод подтверждения для смены email в SortLearn: ${code}\nКод действует ${env.VERIFICATION_CODE_TTL_MINUTES} минут.\n\nЕсли вы не инициировали смену email, просто проигнорируйте это письмо.`,
     }),
-    mailer.sendMail({
+    sendMailOrThrow('email-change', {
       from: env.MAIL_FROM,
       to: user.email,
       subject: 'Уведомление о запросе смены email в SortLearn',
@@ -210,7 +210,7 @@ export async function requestPasswordChange(userId: string, newPassword: string)
     pendingPasswordHash,
   });
 
-  await mailer.sendMail({
+  await sendMailOrThrow('password-change', {
     from: env.MAIL_FROM,
     to: user.email,
     subject: 'Код подтверждения смены пароля в SortLearn',
